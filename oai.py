@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
+Script to fetch metadata records from the OAI endpoint of the Iberica journal,
+store them in a CSV file, and download associated PDF files.
 
-
-@author: patry
+Author: patry
 """
 
 from sickle import Sickle
@@ -11,51 +12,29 @@ import requests
 import csv
 import os
 
-
 OAI_ENDPOINT = "https://revistaiberica.org/index.php/iberica/oai"
-
-
 CSV_FILENAME = "metadane_iberica.csv"
-
-
 PDF_DIR = "pdfy"
 
 def main():
-  
+    """
+    Main function that fetches metadata records from the OAI endpoint, saves the metadata
+    in a CSV file, and downloads PDFs associated with the records.
+    """
     os.makedirs(PDF_DIR, exist_ok=True)
-
-
     sickle = Sickle(OAI_ENDPOINT)
-
-
     records = sickle.ListRecords(metadataPrefix='oai_dc')
-
     with open(CSV_FILENAME, mode="w", encoding="utf-8", newline="") as csv_file:
-
         fieldnames = [
-            "record_id",
-            "title",
-            "creator",
-            "subject",
-            "description",
-            "publisher",
-            "date",
-            "type",
-            "format",
-            "identifier",
-            "source",
-            "language",
-            "relation",
-            "coverage",
-            "rights"
+            "record_id", "title", "creator", "subject", "description", "publisher",
+            "date", "type", "format", "identifier", "source", "language", "relation", 
+            "coverage", "rights"
         ]
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         for i, record in enumerate(records, start=1):
-
             if record.deleted:
                 continue
-
             md = record.metadata
             row = {
                 "record_id": record.header.identifier,
@@ -74,48 +53,33 @@ def main():
                 "coverage": ", ".join(md.get("coverage", [])),
                 "rights": ", ".join(md.get("rights", [])),
             }
-
-  
             writer.writerow(row)
-
-
             possible_links = md.get("identifier", []) + md.get("relation", [])
-
             for link in possible_links:
-
                 if link.lower().endswith(".pdf"):
                     download_pdf(link)
-
-
             if i % 50 == 0:
-                print(f"Pobrano {i} rekordów...")
-
-    print("Zakończono pobieranie metadanych i zapisywanie do CSV.")
+                print(f"Downloaded {i} records...")
+    print("Finished downloading metadata and saving to CSV.")
 
 def download_pdf(url):
-    """Pobiera plik PDF z podanego adresu URL i zapisuje go w katalogu PDF_DIR."""
+    """
+    Downloads a PDF file from the given URL and saves it in the PDF_DIR directory.
+    Args:
+        url (str): The URL of the PDF to download.
+    """
     try:
-
         filename = url.split("/")[-1]
         filepath = os.path.join(PDF_DIR, filename)
-
-  
         if os.path.exists(filepath):
             return
-
         response = requests.get(url, timeout=20)
         response.raise_for_status()
-
         with open(filepath, "wb") as f:
             f.write(response.content)
-        print(f"Zapisano PDF: {filepath}")
-
+        print(f"Saved PDF: {filepath}")
     except Exception as e:
-        print(f"Nie udało się pobrać PDF z {url}. Błąd: {e}")
+        print(f"Failed to download PDF from {url}. Error: {e}")
 
 if __name__ == "__main__":
     main()
-    
-    
-    
-
